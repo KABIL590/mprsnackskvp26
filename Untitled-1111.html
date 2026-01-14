@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MPR Snacks - Kovilpatti</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-in-out; }
+        .animate-slideIn { animation: slideIn 0.3s ease-out; }
+        
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #ea580c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #c2410c; }
+    </style>
+</head>
+<body class="bg-orange-50 text-gray-800">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+
+        // ==========================================
+        // CONFIGURATION SECTION
+        // ==========================================
+        
+        // REPLACE THIS WITH YOUR 'rzp_live_...' KEY FOR REAL MONEY
+        const RAZORPAY_KEY_ID = 'rzp_test_S32KSX5lyYPJ2f'; 
+
+        // ==========================================
+        // MAIN APPLICATION CODE
+        // ==========================================
+
+        const { useState, useEffect } = React;
+
+        // --- COMPONENTS ---
+
+        const Header = ({ cartCount, onCartClick, onOwnerPortalClick }) => (
+            <header className="bg-orange-600 text-white shadow-lg sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <div className="bg-white text-orange-600 font-bold rounded-full w-8 h-8 flex items-center justify-center">M</div>
+                        <div className="text-xl md:text-2xl font-bold cursor-pointer tracking-tight">MPR Snacks</div>
+                    </div>
+                    <div className="flex items-center space-x-6">
+                        <button onClick={onOwnerPortalClick} className="text-xs md:text-sm hover:text-orange-200 font-medium opacity-90 transition-colors">Owner Login</button>
+                        <button onClick={onCartClick} className="relative flex items-center font-semibold hover:text-orange-100 transition-transform hover:scale-105">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-1">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                            </svg>
+                            <span className="hidden md:inline">Cart</span>
+                            {cartCount > 0 && (
+                                <span className="absolute -top-2 -right-3 bg-white text-orange-600 rounded-full text-xs w-5 h-5 flex items-center justify-center font-bold shadow-md border border-orange-200">
+                                    {cartCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </header>
+        );
+
+        const Hero = () => (
+            <div className="bg-gradient-to-b from-orange-100 to-orange-50 py-16 px-4 text-center border-b border-orange-200">
+                <h1 className="text-4xl md:text-6xl font-extrabold text-orange-900 mb-4 drop-shadow-sm">Taste of Kovilpatti</h1>
+                <p className="text-lg text-orange-800 max-w-2xl mx-auto font-medium">
+                    Authentic Kadalai Mittai, Koko Mittai & Ellu Mittai delivered straight to your doorstep.
+                </p>
+                <div className="mt-6">
+                    <a href="#products" className="bg-orange-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-orange-700 hover:shadow-xl transition-all inline-block transform hover:-translate-y-1">
+                        Order Now
+                    </a>
+                </div>
+            </div>
+        );
+
+        const ProductCard = ({ product, onAddToCart }) => {
+            const [selectedWeight, setSelectedWeight] = useState(product.prices[0]);
+
+            return (
+                <div className="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col hover:shadow-xl transition-shadow duration-300 border border-gray-100 group">
+                    <div className="h-56 overflow-hidden bg-gray-100 relative">
+                        <img src={product.image} alt={product.name} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700" />
+                        <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+                    </div>
+                    <div className="p-5 flex flex-col flex-1">
+                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">{product.name}</h3>
+                        <p className="text-gray-600 text-sm mt-2 flex-1 leading-relaxed">{product.description}</p>
+                        
+                        <div className="mt-5 space-y-4">
+                            <div className="flex justify-between items-center bg-gray-50 p-2 rounded-lg">
+                                <label className="text-sm font-semibold text-gray-700 ml-1">Pack Size:</label>
+                                <select 
+                                    className="bg-white border border-gray-300 text-gray-700 text-sm rounded-md focus:ring-orange-500 focus:border-orange-500 block p-1.5 outline-none font-medium"
+                                    value={selectedWeight.weight}
+                                    onChange={(e) => setSelectedWeight(product.prices.find(p => p.weight === e.target.value) || product.prices[0])}
+                                >
+                                    {product.prices.map(p => (
+                                        <option key={p.weight} value={p.weight}>{p.weight}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            <div className="flex justify-between items-center pt-2">
+                                <span className="text-2xl font-bold text-orange-600">₹{selectedWeight.price}</span>
+                                <button 
+                                    onClick={() => onAddToCart(product.id, selectedWeight.weight, selectedWeight.price)}
+                                    className="bg-orange-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 transition-colors shadow-md active:transform active:scale-95 flex items-center"
+                                >
+                                    Add +
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Cart = ({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, onCheckout }) => {
+            if (!isOpen) return null;
+            const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+            return (
+                <div className="fixed inset-0 z-50 flex justify-end animate-fadeIn">
+                    <div className="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm" onClick={onClose}></div>
+                    <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slideIn">
+                        <div className="p-5 bg-orange-600 text-white flex justify-between items-center shadow-md">
+                            <h2 className="text-xl font-bold flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                </svg>
+                                Your Cart
+                            </h2>
+                            <button onClick={onClose} className="text-white hover:text-gray-200 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-gray-50">
+                            {items.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-24 h-24 mb-4 opacity-30">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                                    </svg>
+                                    <p className="text-lg font-medium">Your cart is empty</p>
+                                    <button onClick={onClose} className="mt-4 text-orange-600 font-semibold hover:underline">Start Shopping</button>
+                                </div>
+                            ) : (
+                                items.map((item) => (
+                                    <div key={item.id} className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                        <div>
+                                            <h4 className="font-bold text-gray-800">{item.productName}</h4>
+                                            <p className="text-sm text-gray-500 font-medium">{item.weight} — <span className="text-orange-600">₹{item.price}</span></p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                                                <button className="px-3 py-1 hover:bg-gray-200 transition-colors font-bold text-gray-600" onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}>−</button>
+                                                <span className="px-3 text-sm font-bold bg-white">{item.quantity}</span>
+                                                <button className="px-3 py-1 hover:bg-gray-200 transition-colors font-bold text-gray-600" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}>+</button>
+                                            </div>
+                                            <button onClick={() => onRemoveItem(item.id)} className="text-red-400 hover:text-red-600 transition-colors p-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {items.length > 0 && (
+                            <div className="p-6 bg-white border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                                <div className="flex justify-between items-center mb-6">
+                                    <span className="text-gray-600 font-medium">Subtotal</span>
+                                    <span className="text-2xl font-extrabold text-gray-900">₹{total}</span>
+                                </div>
+                                <button onClick={onCheckout} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold hover:bg-green-700 shadow-lg transform active:scale-[0.98] transition-all flex justify-center items-center gap-2 text-lg">
+                                    Proceed to Checkout
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const Checkout = ({ isOpen, onClose, items, total, onSubmitOrder }) => {
+            if (!isOpen) return null;
+            const [formData, setFormData] = useState({ name: '', phone: '', email: '', address: '' });
+            const [paymentMethod, setPaymentMethod] = useState('online'); // 'online' or 'cod'
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onSubmitOrder({ ...formData, customerName: formData.name, items, total, method: paymentMethod });
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
+                    <div className="absolute inset-0 bg-black bg-opacity-70 backdrop-blur-sm" onClick={onClose}></div>
+                    <div className="relative bg-white rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-900">Checkout</h2>
+                            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-gray-500">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div className="mb-8 bg-gradient-to-r from-orange-50 to-white border border-orange-100 p-4 rounded-xl text-orange-900 flex justify-between items-center shadow-sm">
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold uppercase tracking-wide text-orange-400">Total Payable</span>
+                                <span className="font-extrabold text-2xl">₹{total}</span>
+                            </div>
+                            <div className="bg-white p-2 rounded-lg shadow-sm">🛍️ {items.length} Items</div>
+                        </div>
+                        
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Contact Info</label>
+                                <input required placeholder="Full Name" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-all" onChange={e => setFormData({...formData, name: e.target.value})} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <input required placeholder="Phone Number" type="tel" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-all" onChange={e => setFormData({...formData, phone: e.target.value})} />
+                                <input required placeholder="Email" type="email" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-all" onChange={e => setFormData({...formData, email: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Delivery Address</label>
+                                <textarea required placeholder="House No, Street, City, Pincode" rows="3" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-all" onChange={e => setFormData({...formData, address: e.target.value})}></textarea>
+                            </div>
+                            
+                            <div className="pt-4">
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Payment Method</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div 
+                                        onClick={() => setPaymentMethod('online')}
+                                        className={`cursor-pointer p-4 border rounded-xl text-center transition-all relative ${paymentMethod === 'online' ? 'border-orange-500 bg-orange-50 ring-1 ring-orange-500' : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'}`}
+                                    >
+                                        {paymentMethod === 'online' && <div className="absolute top-2 right-2 text-orange-600"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg></div>}
+                                        <div className="font-bold text-gray-800 mb-1">Pay Online</div>
+                                        <div className="text-xs text-gray-500">UPI / Cards</div>
+                                    </div>
+                                    <div 
+                                        onClick={() => setPaymentMethod('cod')}
+                                        className={`cursor-pointer p-4 border rounded-xl text-center transition-all relative ${paymentMethod === 'cod' ? 'border-orange-500 bg-orange-50 ring-1 ring-orange-500' : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'}`}
+                                    >
+                                        {paymentMethod === 'cod' && <div className="absolute top-2 right-2 text-orange-600"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg></div>}
+                                        <div className="font-bold text-gray-800 mb-1">Cash on Delivery</div>
+                                        <div className="text-xs text-gray-500">Pay on doorstep</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" className="w-full mt-6 py-4 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 shadow-lg transition-all flex justify-center items-center gap-2">
+                                {paymentMethod === 'online' ? (
+                                    <>
+                                        <span>Proceed to Payment</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                                        </svg>
+                                    </>
+                                ) : 'Place Order'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const OwnerPortal = ({ isOpen, onClose, orders, onDeleteOrder, products, onAddProduct, onDeleteProduct }) => {
+            if (!isOpen) return null;
+            const [password, setPassword] = useState('');
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'products'
+            
+            // New Product State
+            const [newProd, setNewProd] = useState({ name: '', description: '', price: '', image: '' });
+
+            if (!isAuthenticated) {
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 animate-fadeIn backdrop-blur-sm">
+                        <div className="bg-white p-8 rounded-xl shadow-2xl w-80 text-center">
+                            <h3 className="text-xl font-bold mb-6 text-gray-800">Owner Login</h3>
+                            <input type="password" placeholder="Password (admin123)" className="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 focus:ring-blue-500" value={password} onChange={e => setPassword(e.target.value)} />
+                            <button onClick={() => password === 'admin123' ? setIsAuthenticated(true) : alert('Wrong Password')} className="w-full py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">Login</button>
+                            <button onClick={onClose} className="mt-4 text-sm text-gray-500 hover:underline block w-full">Cancel</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            const handleAddSubmit = (e) => {
+                e.preventDefault();
+                onAddProduct({
+                    id: Date.now().toString(),
+                    name: newProd.name,
+                    description: newProd.description,
+                    image: newProd.image || 'https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=400',
+                    prices: [{ weight: 'Standard', price: parseInt(newProd.price) }]
+                });
+                setNewProd({ name: '', description: '', price: '', image: '' });
+                alert("Product Added Successfully!");
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 bg-gray-100 overflow-auto animate-fadeIn">
+                    <div className="max-w-7xl mx-auto p-4 md:p-8">
+                        <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm">
+                            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Owner Dashboard</h1>
+                            <button onClick={onClose} className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-700">Exit Portal</button>
+                        </div>
+
+                        {/* TABS */}
+                        <div className="flex space-x-2 mb-6 border-b border-gray-300">
+                            <button onClick={() => setActiveTab('orders')} className={`py-2 px-6 font-bold rounded-t-lg transition-colors ${activeTab === 'orders' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>Orders</button>
+                            <button onClick={() => setActiveTab('products')} className={`py-2 px-6 font-bold rounded-t-lg transition-colors ${activeTab === 'products' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>Manage Products</button>
+                        </div>
+                        
+                        {/* ORDERS TAB */}
+                        {activeTab === 'orders' && (
+                            <div className="bg-white rounded-xl shadow overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-gray-100 text-gray-600 uppercase text-xs font-bold">
+                                            <tr>
+                                                <th className="p-4 border-b">Date</th>
+                                                <th className="p-4 border-b">Customer</th>
+                                                <th className="p-4 border-b">Items</th>
+                                                <th className="p-4 border-b">Total</th>
+                                                <th className="p-4 border-b">Method</th>
+                                                <th className="p-4 border-b">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="text-gray-700 text-sm">
+                                            {orders.length === 0 ? (
+                                                <tr><td colSpan="6" className="p-8 text-center text-gray-400 font-medium">No orders received yet.</td></tr>
+                                            ) : (
+                                                orders.map((order) => (
+                                                    <tr key={order.id} className="border-b hover:bg-gray-50">
+                                                        <td className="p-4 whitespace-nowrap">{new Date(order.created_at).toLocaleDateString()}</td>
+                                                        <td className="p-4">
+                                                            <div className="font-bold">{order.order_data.customerName}</div>
+                                                            <div className="text-xs text-gray-500">{order.order_data.phone}</div>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            {order.order_data.items.map((i,idx) => <div key={idx} className="mb-1">• {i.productName} ({i.weight}) x{i.quantity}</div>)}
+                                                        </td>
+                                                        <td className="p-4 font-bold">₹{order.order_data.total}</td>
+                                                        <td className="p-4">
+                                                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${order.order_data.method === 'cod' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
+                                                                {order.order_data.method}
+                                                            </span>
+                                                            <div className="text-[10px] mt-1 text-gray-400">{order.order_data.status}</div>
+                                                        </td>
+                                                        <td className="p-4"><button onClick={() => onDeleteOrder(order.id)} className="text-red-500 font-bold hover:underline">Delete</button></td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* PRODUCTS TAB */}
+                        {activeTab === 'products' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                {/* ADD FORM */}
+                                <div className="bg-white p-6 rounded-xl shadow h-fit border border-gray-100">
+                                    <h3 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">Add New Product</h3>
+                                    <form onSubmit={handleAddSubmit} className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Product Name</label>
+                                            <input required className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" value={newProd.name} onChange={e => setNewProd({...newProd, name: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Description</label>
+                                            <textarea required className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" value={newProd.description} onChange={e => setNewProd({...newProd, description: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Price (₹)</label>
+                                            <input required type="number" className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" value={newProd.price} onChange={e => setNewProd({...newProd, price: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Image URL</label>
+                                            <input className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="https://..." value={newProd.image} onChange={e => setNewProd({...newProd, image: e.target.value})} />
+                                        </div>
+                                        <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 shadow-md">Add Product</button>
+                                    </form>
+                                </div>
+                                {/* LIST */}
+                                <div className="lg:col-span-2 space-y-4">
+                                    {products.map(p => (
+                                        <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                            <div className="flex items-center gap-4 w-full">
+                                                <img src={p.image} className="w-16 h-16 object-cover rounded-lg shadow-sm" />
+                                                <div>
+                                                    <div className="font-bold text-lg text-gray-800">{p.name}</div>
+                                                    <div className="text-sm text-gray-500 line-clamp-1">{p.description}</div>
+                                                    <div className="font-bold text-orange-600 mt-1">₹{p.prices[0].price}</div>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => onDeleteProduct(p.id)} className="bg-red-50 text-red-600 px-4 py-2 rounded-lg hover:bg-red-100 font-medium whitespace-nowrap transition-colors">Delete</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APP LOGIC ---
+
+        function App() {
+            // INITIAL DATA
+            const DEFAULT_PRODUCTS = [
+                { 
+                    id: '1', 
+                    name: 'Kadalai Mittai', 
+                    description: 'Traditional Kovilpatti peanut candy made with jaggery.', 
+                    image: 'https://images.unsplash.com/photo-1649278942739-c172050735d1?auto=format&fit=crop&w=400&q=80', 
+                    prices: [{ weight: '250g', price: 65 }, { weight: '500g', price: 120 }, { weight: '1 kg', price: 230 }] 
+                },
+                { 
+                    id: '2', 
+                    name: 'Koko Mittai', 
+                    description: 'Sweet coconut candy bursting with flavor.', 
+                    image: 'https://images.unsplash.com/photo-1662490880155-700ebafbae4c?auto=format&fit=crop&w=400&q=80', 
+                    prices: [{ weight: '200g', price: 50 }, { weight: '500g', price: 110 }] 
+                },
+                { 
+                    id: '3', 
+                    name: 'Ellu Mittai', 
+                    description: 'Healthy and tasty sesame seed candy.', 
+                    image: 'https://images.unsplash.com/photo-1718480322153-e693ac35c6f5?auto=format&fit=crop&w=400&q=80', 
+                    prices: [{ weight: '250g', price: 70 }] 
+                }
+            ];
+
+            // STATE WITH LOCAL STORAGE PERSISTENCE
+            const [products, setProducts] = useState(() => {
+                const saved = localStorage.getItem('mpr_products');
+                return saved ? JSON.parse(saved) : DEFAULT_PRODUCTS;
+            });
+            
+            const [orders, setOrders] = useState(() => {
+                const saved = localStorage.getItem('mpr_orders');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            const [cartItems, setCartItems] = useState([]);
+            const [isCartOpen, setIsCartOpen] = useState(false);
+            const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+            const [isOwnerPortalOpen, setIsOwnerPortalOpen] = useState(false);
+
+            // Save to LocalStorage whenever state changes
+            useEffect(() => { localStorage.setItem('mpr_products', JSON.stringify(products)); }, [products]);
+            useEffect(() => { localStorage.setItem('mpr_orders', JSON.stringify(orders)); }, [orders]);
+
+            const handleAddToCart = (productId, weight, price) => {
+                const product = products.find(p => p.id === productId);
+                const existing = cartItems.find(item => item.productName === product.name && item.weight === weight);
+                if (existing) {
+                    setCartItems(cartItems.map(item => item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item));
+                } else {
+                    setCartItems([...cartItems, { id: Date.now(), productName: product.name, weight, price, quantity: 1 }]);
+                }
+                setIsCartOpen(true);
+            };
+
+            const handleCheckoutSubmit = (orderData) => {
+                // CASH ON DELIVERY LOGIC
+                if (orderData.method === 'cod') {
+                    saveOrder({ ...orderData, status: 'Confirmed' });
+                    return;
+                }
+
+                // ONLINE PAYMENT LOGIC (RAZORPAY)
+                const options = {
+                    key: RAZORPAY_KEY_ID, 
+                    amount: orderData.total * 100, // Convert Rupee to Paisa
+                    currency: "INR",
+                    name: "MPR Snacks",
+                    description: "Order Payment",
+                    handler: function (response) {
+                        // Payment Successful
+                        saveOrder({ ...orderData, status: 'Paid Online', paymentId: response.razorpay_payment_id });
+                    },
+                    prefill: { name: orderData.customerName, email: orderData.email, contact: orderData.phone },
+                    theme: { color: "#ea580c" },
+                    modal: {
+                        ondismiss: function() {
+                            // Optional: Alert user if they closed without paying
+                        }
+                    }
+                };
+
+                try {
+                    const rzp1 = new Razorpay(options);
+                    rzp1.open();
+                } catch (e) {
+                    alert("Payment Error: Make sure you are connected to the internet.");
+                    console.error(e);
+                }
+            };
+
+            const saveOrder = (finalOrderData) => {
+                const newOrder = { id: Date.now().toString(), created_at: new Date().toISOString(), order_data: finalOrderData };
+                setOrders([newOrder, ...orders]);
+                setCartItems([]);
+                setIsCheckoutOpen(false);
+                
+                // Show Success Message
+                if(finalOrderData.method === 'cod') {
+                    alert("🎉 Order Placed Successfully! \nWe will deliver to " + finalOrderData.address + " soon.");
+                } else {
+                    alert("✅ Payment Successful! \nYour order has been confirmed.");
+                }
+            };
+
+            // OWNER ACTIONS
+            const handleAddProduct = (prod) => setProducts([...products, prod]);
+            const handleDeleteProduct = (id) => { if(confirm('Are you sure you want to remove this product?')) setProducts(products.filter(p => p.id !== id)); };
+            const handleDeleteOrder = (id) => { if(confirm('Delete this order record?')) setOrders(orders.filter(o => o.id !== id)); };
+
+            return (
+                <div className="flex flex-col min-h-screen">
+                    <Header 
+                        cartCount={cartItems.reduce((sum, i) => sum + i.quantity, 0)} 
+                        onCartClick={() => setIsCartOpen(true)}
+                        onOwnerPortalClick={() => setIsOwnerPortalOpen(true)}
+                    />
+                    
+                    <main className="flex-1">
+                        <Hero />
+                        <section id="products" className="max-w-7xl mx-auto px-4 py-16">
+                            <h2 className="text-3xl font-bold text-center mb-12 text-gray-900 relative inline-block left-1/2 transform -translate-x-1/2">
+                                Our Specials
+                                <span className="block h-1 w-20 bg-orange-500 mt-2 mx-auto rounded-full"></span>
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                {products.map(p => (
+                                    <ProductCard key={p.id} product={p} onAddToCart={handleAddToCart} />
+                                ))}
+                            </div>
+                        </section>
+                    </main>
+
+                    <footer className="bg-gray-900 text-gray-300 py-8 text-center border-t border-gray-800">
+                        <p className="font-medium">&copy; 2026 MPR Snacks, Kovilpatti. All rights reserved.</p>
+                        <p className="text-sm mt-2 text-gray-500">Delicious moments delivered.</p>
+                    </footer>
+
+                    <Cart 
+                        isOpen={isCartOpen} 
+                        onClose={() => setIsCartOpen(false)} 
+                        items={cartItems} 
+                        onUpdateQuantity={(id, q) => setCartItems(items => items.map(i => i.id === id ? {...i, quantity: q} : i))}
+                        onRemoveItem={(id) => setCartItems(items => items.filter(i => i.id !== id))}
+                        onCheckout={() => { setIsCartOpen(false); setIsCheckoutOpen(true); }}
+                    />
+
+                    <Checkout 
+                        isOpen={isCheckoutOpen} 
+                        onClose={() => setIsCheckoutOpen(false)} 
+                        items={cartItems} 
+                        total={cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0)} 
+                        onSubmitOrder={handleCheckoutSubmit}
+                    />
+
+                    <OwnerPortal 
+                        isOpen={isOwnerPortalOpen} 
+                        onClose={() => setIsOwnerPortalOpen(false)} 
+                        orders={orders} 
+                        products={products}
+                        onDeleteOrder={handleDeleteOrder}
+                        onAddProduct={handleAddProduct}
+                        onDeleteProduct={handleDeleteProduct}
+                    />
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+    </script>
+</body>
+</html>
